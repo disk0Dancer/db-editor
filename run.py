@@ -1,1 +1,1 @@
-from app import root
+from app import app
