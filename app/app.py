@@ -1,18 +1,15 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, END
+from tkinter import ttk, messagebox, END, BooleanVar
 import psycopg2
 from psycopg2 import Error
 
 
 class App:
 
-
     def __init__(self):
         self.root = self.create_root()
-        self.root.mainloop()
         self.connection = None
-        # self.create_connection()
-        # self.on_connect()
+        self.root.mainloop()
 
     def create_root(self):
         root = tk.Tk()
@@ -79,7 +76,6 @@ class App:
         table_info_frame = ttk.LabelFrame(main_frame, text="Информация о таблице")
         table_info_frame.grid(column=2, row=0, padx=10, pady=10, sticky=(tk.N, tk.S))
 
-        # todo add current table name
         table_label = ttk.Label(table_info_frame, text="Таблица:")
         table_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
         self.table_entry = ttk.Entry(table_info_frame)
@@ -92,25 +88,27 @@ class App:
         self.field_listbox.grid(column=0, row=0, padx=5, pady=5)
         self.field_listbox.bind('<<ListboxSelect>>', self.on_field_select)
 
+
         field_label_frame = ttk.Frame(field_list_frame)
         field_label_frame.grid(column=1, row=0, padx=5, pady=5, sticky=(tk.W, tk.E))
-        # todo get field name
+
         field_name_label = ttk.Label(field_label_frame, text="Название:")
         field_name_label.grid(column=0, row=0, padx=5, pady=5, sticky=tk.W)
         self.field_name_entry = ttk.Entry(field_label_frame)
         self.field_name_entry.grid(column=1, row=0, padx=5, pady=5, sticky=(tk.W, tk.E))
-        # todo get field type
+
         field_type_label = ttk.Label(field_label_frame, text="Тип:")
         field_type_label.grid(column=0, row=1, padx=5, pady=5, sticky=tk.W)
         self.field_type_combo = ttk.Combobox(field_label_frame, state="readonly",
                                              values=['Integer', 'double', 'Text', 'Datetime'])
-                                        # values=["Целый", "Вещественный", "Текст", "Дата/Время"])
+
         self.field_type_combo.grid(column=1, row=1, padx=5, pady=5, sticky=(tk.W, tk.E))
         # selection = combo.get()
         # todo get is_checked
         pk_label = ttk.Label(field_label_frame, text="Первичный ключ:")
         pk_label.grid(column=0, row=2, padx=5, pady=5, sticky=tk.W)
-        self.pk_checkbtn = ttk.Checkbutton(field_label_frame)
+        self.var_pk = BooleanVar()
+        self.pk_checkbtn = ttk.Checkbutton(field_label_frame, variable=self.var_pk)
         self.pk_checkbtn.grid(column=1, row=2, padx=5, pady=5, sticky=(tk.W, tk.E))
         # todo check args
         # todo innsrt selected field params into form
@@ -171,15 +169,20 @@ class App:
 
     @error_handler
     def show_table_info(self, table_name):
+        #fields
         self.get_table_fields(table_name)
-        # print(self.fields)
         self.field_listbox.delete(0, tk.END)
 
-        for  index, field in enumerate(self.fields):
-            self.field_listbox.insert(str(index), field)
+        for index, field in enumerate(self.fields):
+            self.field_listbox.insert(index, field)
 
+        # cur table name
         self.table_entry.delete(0, tk.END)
         self.table_entry.insert(0, table_name)
+        # cur field
+        self.field_name_entry.delete(0, tk.END)
+        self.field_type_combo.set('')
+        self.var_pk.set(False)
 
     @error_handler
     def create_table(self, table_name, primary_key, fields):
@@ -219,7 +222,6 @@ class App:
         connection.commit()
         cursor.close()
 
-
     def on_connect(self):
         'create connection to db and show all tables'
         db_name = self.database_entry.get()
@@ -236,16 +238,18 @@ class App:
         for index, table in enumerate(self.tables_names):
             self.table_listbox.insert(str(index),table)
 
-
     def on_table_select(self, *args):
-        # x =
-        cur_table_name = self.table_listbox.get(self.table_listbox.curselection())
+        x = self.table_listbox.curselection()
+        print(x)
+        cur_table_name = self.table_listbox.get(x)
         self.show_table_info(cur_table_name)
         # todo catch empty click
 
 
-    def on_field_select(self):
-        cur_field_name = self.field_listbox.get(self.field_listbox.curselection())
+
+    def on_field_select(self, *args):
+        x = self.field_listbox.curselection()
+        cur_field_name = self.field_listbox.get(x)
         self.show_field_info(cur_field_name)
 
     def on_create_table(self):
@@ -294,8 +298,7 @@ class App:
         self.field_name_entry.delete(0, tk.END)
         self.field_name_entry.insert(0, field)
 
-        self.field_type_combo.set()
+        self.field_type_combo.set(self.fields_info[field]['data_type'])
 
-        self.pk_checkbtn.check()
+        self.var_pk.set(self.fields_info[field]['pk'])
 
-        pass
