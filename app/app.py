@@ -180,9 +180,7 @@ class App:
         self.table_entry.delete(0, tk.END)
         self.table_entry.insert(0, table_name)
         # cur field
-        self.field_name_entry.delete(0, tk.END)
-        self.field_type_combo.set('')
-        self.var_pk.set(False)
+        self.clear_field_info()
 
     @error_handler
     def create_table(self, table_name, primary_key, fields):
@@ -253,15 +251,21 @@ class App:
         self.show_field_info(cur_field_name)
 
     def on_create_table(self):
-        # todo
+        # clear
+        self.clear_fields_list()
+        self.clear_field_info()
+
+        # get
         table_name = self.table_entry.get()
-        primary_key = primary_key_entry.get()
-        fields = []
+        self.fields_info = {}
+
         for field in self.field_listbox.get(0, tk.END):
             fields.append()
 
-        create_table(connection, table_name, primary_key, fields)
-        tables = get_tables(connection)
+        # upd
+        # todo add btn to commit
+        self.create_table(connection, table_name, primary_key, fields)
+        tables = self.get_tables(connection)
         table_listbox.delete(0, tk.END)
         for table in tables:
             table_listbox.insert(tk.END, table)
@@ -302,3 +306,17 @@ class App:
 
         self.var_pk.set(self.fields_info[field]['pk'])
 
+
+    def clear_fields_list(self):
+        # clear
+        self.field_listbox.delete(0, tk.END)
+        # cur table name
+        self.table_entry.delete(0, tk.END)
+        self.table_entry.insert(0, table_name)
+        self.clear_field_info()
+
+    def clear_field_info(self):
+        # cur field
+        self.field_name_entry.delete(0, tk.END)
+        self.field_type_combo.set('')
+        self.var_pk.set(False)
