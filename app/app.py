@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, END
 import psycopg2
 from psycopg2 import Error
 
@@ -11,7 +11,8 @@ class App:
         self.root = self.create_root()
         self.root.mainloop()
         self.connection = None
-        self.create_connection()
+        # self.create_connection()
+        # self.on_connect()
 
     def create_root(self):
         root = tk.Tk()
@@ -102,7 +103,8 @@ class App:
         field_type_label = ttk.Label(field_label_frame, text="Тип:")
         field_type_label.grid(column=0, row=1, padx=5, pady=5, sticky=tk.W)
         self.field_type_combo = ttk.Combobox(field_label_frame, state="readonly",
-                                        values=["Целый", "Вещественный", "Текст", "Дата/Время"])
+                                             values=['Integer', 'double', 'Text', 'Datetime'])
+                                        # values=["Целый", "Вещественный", "Текст", "Дата/Время"])
         self.field_type_combo.grid(column=1, row=1, padx=5, pady=5, sticky=(tk.W, tk.E))
         # selection = combo.get()
         # todo get is_checked
@@ -127,7 +129,7 @@ class App:
             try:
                 func(*args, **kwargs)
             except (Exception, Error) as error:
-                print("Error", error)
+                print(f"Error while {func.__name__}: {error}")
                 messagebox.showerror(f"Error while {func.__name__}: {error}")
 
         return inside
@@ -136,9 +138,8 @@ class App:
     def create_connection(self, db_name="db", db_user="", db_password="", db_host="", db_port=""):
         self.connection = psycopg2.connect(dbname=db_name, user=db_user, password=db_password, host=db_host, port=db_port)
 
-    @error_handler
     def close_connection(self):
-        if self.connection:
+        if hasattr(self, 'connection') and self.connection:
             self.connection.close()
             self.connection = None
             print("Connection closed")
@@ -159,15 +160,26 @@ class App:
             cursor.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table_name}'")
 
             self.fields = [field[0] for field in cursor.fetchall()]
-            print(self.fields)
+
+            cursor.execute(f"""select "column_name", "data_type", "column_default", "udt_name"
+                           from information_schema.columns
+                           where table_name='{table_name}'
+                           order by table_schema, table_name""")
+
+            self.fields_info = {r[0]: {'data_type': r[1], "pk": r[2] is not None, "udt_name": r[3]} for r in list(cursor.fetchall())}
+            # print(self.fields_info)
 
     @error_handler
     def show_table_info(self, table_name):
         self.get_table_fields(table_name)
-        print(self.fields)
+        # print(self.fields)
         self.field_listbox.delete(0, tk.END)
+
         for  index, field in enumerate(self.fields):
-            self.field_listbox.insert(index, field)
+            self.field_listbox.insert(str(index), field)
+
+        self.table_entry.delete(0, tk.END)
+        self.table_entry.insert(0, table_name)
 
     @error_handler
     def create_table(self, table_name, primary_key, fields):
@@ -216,14 +228,17 @@ class App:
         db_host = self.host_entry.get()
         db_port = self.port_entry.get()
 
+        self.close_connection()
+
         self.create_connection(db_name, db_user, db_password, db_host, db_port)
         self.get_tables()
         self.table_listbox.delete(0, tk.END)
         for index, table in enumerate(self.tables_names):
-            self.table_listbox.insert(index, table)
+            self.table_listbox.insert(str(index),table)
 
 
     def on_table_select(self, *args):
+        # x =
         cur_table_name = self.table_listbox.get(self.table_listbox.curselection())
         self.show_table_info(cur_table_name)
         # todo catch empty click
@@ -275,4 +290,12 @@ class App:
 
 
     def show_field_info(self, field):
+
+        self.field_name_entry.delete(0, tk.END)
+        self.field_name_entry.insert(0, field)
+
+        self.field_type_combo.set()
+
+        self.pk_checkbtn.check()
+
         pass
