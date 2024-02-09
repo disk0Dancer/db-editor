@@ -25,5 +25,18 @@
 
 ### Пример работы
 
+<img width="1270" alt="image" src="https://github.com/gchurakov/db-editor/assets/89835485/4da2e7ee-0fa1-469f-9b6f-195a6bce47ed">
+
 
 ### Quick Start
+
+1. Запустить проект
+- `git clone git@github.com:gchurakov/db-editor.git`
+- `cd db-editor`
+- `python3 -m venv venv`
+- `source venv/bin/activate`
+- `pip install -r requirements`
+- `python3 run.py`
+
+3. [Скачать приложение для Mac](https://github.com/gchurakov/db-editor/files/14222113/PostrgeSQL.GUI.Editor.app.zip)
+4. [Скачать приложение для Windows](https://github.com/gchurakov/db-editor/files/14222128/PostrgeSQL.GUI.Editor.exe.zip)
