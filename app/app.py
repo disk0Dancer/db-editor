@@ -9,6 +9,7 @@ class App:
     def __init__(self):
         self.root = self.create_root()
         self.connection = None
+        self.fields_info = {}
         self.root.mainloop()
 
     def create_root(self):
@@ -58,11 +59,8 @@ class App:
         create_table_button = ttk.Button(connect_frame, text="Создать таблицу", command=self.on_create_table)
         create_table_button.grid(column=0, row=6, padx=5, pady=5, sticky=(tk.W, tk.E))
 
-        edit_table_button = ttk.Button(connect_frame, text="Редактировать таблицу", command=self.on_edit_table)
-        edit_table_button.grid(column=0, row=7, padx=5, pady=5, sticky=(tk.W, tk.E))
-
         delete_table_button = ttk.Button(connect_frame, text="Удалить таблицу", command=self.on_delete_table)
-        delete_table_button.grid(column=0, row=8, padx=5, pady=5, sticky=(tk.W, tk.E))
+        delete_table_button.grid(column=0, row=7, padx=5, pady=5, sticky=(tk.W, tk.E))
 
         # Фрейм для вывода списка таблиц
         table_list_frame = ttk.LabelFrame(main_frame, text="Таблицы")
@@ -112,11 +110,11 @@ class App:
         self.pk_checkbtn.grid(column=1, row=2, padx=5, pady=5, sticky=(tk.W, tk.E))
         # todo check args
         # todo innsrt selected field params into form
-        # todo add save button for change existing table
-        add_field_button = ttk.Button(field_label_frame, text="Добавить",
-                                      command=lambda: self.field_listbox.insert(tk.END,
-                                                                           f"{field_name_entry.get()}, {field_type_combo.get()}, {pk_checkbtn.getint()}"))
-        add_field_button.grid(column=0, row=3, padx=5, pady=5, sticky=(tk.W, tk.E))
+        save_field_button = ttk.Button(field_label_frame, text="Сохранить поле", command=self.on_create_field)
+        save_field_button.grid(column=0, row=3, padx=5, pady=5, sticky=(tk.W, tk.E))
+
+        save_table_button = ttk.Button(field_label_frame, text="Сохранить таблицу", command=self.on_create_table_commit)
+        save_table_button.grid(column=1, row=3, padx=5, pady=5, sticky=(tk.W, tk.E))
 
         return root
 
@@ -155,17 +153,12 @@ class App:
     def get_table_fields(self, table_name):
         cursor = self.connection.cursor()
         with cursor:
-            cursor.execute(f"SELECT column_name FROM information_schema.columns WHERE table_name='{table_name}'")
-
-            self.fields = [field[0] for field in cursor.fetchall()]
-
             cursor.execute(f"""select "column_name", "data_type", "column_default", "udt_name"
                            from information_schema.columns
                            where table_name='{table_name}'
                            order by table_schema, table_name""")
 
             self.fields_info = {r[0]: {'data_type': r[1], "pk": r[2] is not None, "udt_name": r[3]} for r in list(cursor.fetchall())}
-            # print(self.fields_info)
 
     @error_handler
     def show_table_info(self, table_name):
@@ -173,8 +166,8 @@ class App:
         self.get_table_fields(table_name)
         self.field_listbox.delete(0, tk.END)
 
-        for index, field in enumerate(self.fields):
-            self.field_listbox.insert(index, field)
+        for index, field in enumerate(self.fields_info.keys()):
+            self.field_listbox.insert(tk.END, field)
 
         # cur table name
         self.table_entry.delete(0, tk.END)
@@ -183,16 +176,16 @@ class App:
         self.clear_field_info()
 
     @error_handler
-    def create_table(self, table_name, primary_key, fields):
-        # todo
-        cursor = self.connection.cursor()
-        cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
-        cursor.execute(f"CREATE TABLE {table_name} ({primary_key} PRIMARY KEY)")
-        for field in fields:
-            field_name, field_type = field
-            cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {field_name} {field_type}")
-        connection.commit()
-        cursor.close()
+    def create_table(self, table_name):
+        with self.connection.cursor() as cursor:
+            cursor.execute(f"DROP TABLE IF EXISTS {table_name}")
+            create_command = f"CREATE TABLE {table_name} (\n"
+            for field, params in self.fields_info.items():
+                create_command += f"{field} {params['data_type']}{' PRIMARY KEY' if params['pk'] else ''},\n" # todo add AUTO_INCREMENT
+            create_command = create_command[:-2] + ');'
+
+            cursor.execute(create_command)
+            self.connection.commit()
 
     @error_handler
     def edit_table(self, table_name, primary_key, fields):
@@ -214,11 +207,10 @@ class App:
 
     @error_handler
     def delete_table(self, table_name):
-        # todo
-        cursor = self.connection.cursor()
-        cursor.execute(f"DROP TABLE {table_name}")
-        connection.commit()
-        cursor.close()
+        with self.connection.cursor() as cursor:
+            cursor.execute(f"DROP TABLE {table_name}")
+            self.connection.commit()
+
 
     def on_connect(self):
         'create connection to db and show all tables'
@@ -231,44 +223,47 @@ class App:
         self.close_connection()
 
         self.create_connection(db_name, db_user, db_password, db_host, db_port)
+        self.show_tables()
+
+    def show_tables(self):
         self.get_tables()
         self.table_listbox.delete(0, tk.END)
         for index, table in enumerate(self.tables_names):
-            self.table_listbox.insert(str(index),table)
+            self.table_listbox.insert(tk.END, table)
 
     def on_table_select(self, *args):
         x = self.table_listbox.curselection()
-        print(x)
         cur_table_name = self.table_listbox.get(x)
         self.show_table_info(cur_table_name)
         # todo catch empty click
-
-
 
     def on_field_select(self, *args):
         x = self.field_listbox.curselection()
         cur_field_name = self.field_listbox.get(x)
         self.show_field_info(cur_field_name)
 
+    def on_create_field(self):
+        field_name = self.field_name_entry.get()
+        self.fields_info[f'{field_name}'] = {
+                'data_type': self.field_type_combo.get(),
+                'pk': self.var_pk.get()
+            #     'udt_name'
+            }
+
+        self.field_listbox.insert(tk.END, field_name)
+        self.clear_field_info()
+
+
     def on_create_table(self):
         # clear
         self.clear_fields_list()
         self.clear_field_info()
-
-        # get
-        table_name = self.table_entry.get()
         self.fields_info = {}
 
-        for field in self.field_listbox.get(0, tk.END):
-            fields.append()
-
-        # upd
-        # todo add btn to commit
-        self.create_table(connection, table_name, primary_key, fields)
-        tables = self.get_tables(connection)
-        table_listbox.delete(0, tk.END)
-        for table in tables:
-            table_listbox.insert(tk.END, table)
+    def on_create_table_commit(self):
+        table_name = self.table_entry.get()
+        self.create_table(table_name)
+        self.show_tables()
 
 
 
@@ -285,16 +280,10 @@ class App:
             for table in tables:
                 table_listbox.insert(tk.END, table)
 
-
     def on_delete_table(self):
-        # todo
-        table_name = table_listbox.get(table_listbox.curselection())
-
-        delete_table(connection, table_name)
-        tables = get_tables(connection)
-        table_listbox.delete(0, tk.END)
-        for table in tables:
-            table_listbox.insert(tk.END, table)
+        table_name = self.table_listbox.get(self.table_listbox.curselection())
+        self.delete_table(table_name)
+        self.show_tables()
 
 
     def show_field_info(self, field):
@@ -302,7 +291,7 @@ class App:
         self.field_name_entry.delete(0, tk.END)
         self.field_name_entry.insert(0, field)
 
-        self.field_type_combo.set(self.fields_info[field]['data_type'])
+        self.field_type_combo.set(self.fields_info[field]['data_type']) # todo check field
 
         self.var_pk.set(self.fields_info[field]['pk'])
 
@@ -312,7 +301,6 @@ class App:
         self.field_listbox.delete(0, tk.END)
         # cur table name
         self.table_entry.delete(0, tk.END)
-        self.table_entry.insert(0, table_name)
         self.clear_field_info()
 
     def clear_field_info(self):
