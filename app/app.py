@@ -117,7 +117,7 @@ class App:
         clear_field_button = ttk.Button(field_label_frame, text="Создать поле", command=self.on_clear_field_info)
         clear_field_button.grid(column=0, row=3, padx=5, pady=5, sticky=(tk.W, tk.E))
 
-        save_table_button = ttk.Button(field_label_frame, text="Удалить поле")# todo create event
+        save_table_button = ttk.Button(field_label_frame, text="Удалить поле", command=self.on_delete_field)
         save_table_button.grid(column=0, row=4, padx=5, pady=5, sticky=(tk.W, tk.E))
 
         save_field_button = ttk.Button(field_label_frame, text="Сохранить поле", command=self.on_create_field)
@@ -133,7 +133,7 @@ class App:
                 func(*args, **kwargs)
             except (Exception, Error) as error:
                 print(f"Error while {func.__name__}: {error}")
-                messagebox.showerror(f"Error while {func.__name__}", "{error}")
+                messagebox.showerror(f"Error while {func.__name__}", f"{error}")
 
         return inside
 
@@ -205,6 +205,8 @@ class App:
         temp = [(field, params['pk']) for field, params in self.fields_info.items()]
         primary_key = next(filter(lambda x: x[1], temp))[0]
 
+        columns = ' ,'.join(self.fields_info.keys())
+
         with self.connection.cursor() as cursor:
             cursor.execute(f"ALTER TABLE {table_name} ALTER COLUMN {primary_key} DROP DEFAULT")
             cursor.execute(f"ALTER TABLE {table_name} DROP CONSTRAINT {table_name}_pkey")
@@ -217,7 +219,7 @@ class App:
                 if field != primary_key:
                     cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {field} {params['data_type']}")
 
-            cursor.execute(f"INSERT INTO {table_name} SELECT * FROM {table_name}_temp")
+            cursor.execute(f"INSERT INTO {table_name} SELECT {columns} FROM {table_name}_temp")
             cursor.execute(f"DROP TABLE {table_name}_temp")
 
             self.connection.commit()
@@ -312,3 +314,11 @@ class App:
     def on_clear_field_info(self):
         self.clear_field_info()
         self.field_name_entry.insert(0, 'untitled_field')
+
+    def on_delete_field(self):
+        table_name = self.table_entry.get()
+        field_name = self.field_name_entry.get()
+        self.fields_info.pop(field_name)
+        self.create_table(table_name)
+        self.clear_field_info()
+        # self.show_table_info(table_name)
