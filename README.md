@@ -39,4 +39,5 @@
 - `python3 run.py`
 
 3. [Скачать приложение для Mac](https://github.com/gchurakov/db-editor/files/14222113/PostrgeSQL.GUI.Editor.app.zip)
-4. [Скачать приложение для Windows](https://github.com/gchurakov/db-editor/files/14222128/PostrgeSQL.GUI.Editor.exe.zip)
+4. [Скачать приложение для Windows](https://github.com/gchurakov/db-editor/files/14235475/PostgreSQL_GUI_Editor.exe.zip)
+
