@@ -194,7 +194,7 @@ class App:
 
             create_command = f"CREATE TABLE {table_name} (\n"
             for field, params in self.fields_info.items():
-                create_command += f"{field} {'serial PRIMARY KEY' if params['pk'] else f'{params['data_type']}'},\n"
+                create_command += f"{field}"+ f"{'serial PRIMARY KEY' if params['pk'] else f'{params['data_type']}'}"+",\n"
             create_command = create_command[:-2] + ');'
 
             cursor.execute(create_command)
